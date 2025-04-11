@@ -3,6 +3,15 @@ let students = [];
 let relationships = [];
 let nodePositions = {};
 
+// API 요청 기본 설정
+const fetchOptions = {
+    headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+    }
+};
+
 // DOM이 로드되면 데이터를 불러오고 이벤트 리스너 설정
 document.addEventListener('DOMContentLoaded', () => {
     loadData();
@@ -12,11 +21,12 @@ document.addEventListener('DOMContentLoaded', () => {
 async function loadData() {
     try {
         // 학생 데이터 로드
-        const studentsResponse = await fetch('/api/students');
+        const timestamp = new Date().getTime(); // 캐시 방지용 타임스탬프
+        const studentsResponse = await fetch(`/api/students?t=${timestamp}`, fetchOptions);
         students = await studentsResponse.json();
 
         // 관계 데이터 로드
-        const relationshipsResponse = await fetch('/api/relationships');
+        const relationshipsResponse = await fetch(`/api/relationships?t=${timestamp}`, fetchOptions);
         relationships = await relationshipsResponse.json();
         
         // UI 업데이트
@@ -220,8 +230,8 @@ async function addStudent() {
     const input = document.getElementById('studentName');
     const name = input.value.trim();
     
-    if (!name) {
-        alert('학생 이름을 입력해주세요.');
+    if (name === '') {
+        alert('학생 이름을 입력하세요.');
         return;
     }
     
@@ -229,21 +239,21 @@ async function addStudent() {
         const response = await fetch('/api/students', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                ...fetchOptions.headers
             },
-            body: JSON.stringify({ name })
+            body: JSON.stringify({ name: name })
         });
         
         if (response.ok) {
-            const student = await response.json();
-            students.push(student);
-            updateStudentList();
-            updateRelationshipMap();
             input.value = '';
+            loadData();
+        } else {
+            const error = await response.json();
+            alert(`오류 발생: ${error.error}`);
         }
     } catch (error) {
         console.error('학생 추가 중 오류 발생:', error);
-        alert('학생을 추가하는 중 오류가 발생했습니다.');
     }
 }
 
@@ -285,20 +295,18 @@ async function saveEdit() {
 async function deleteStudent(studentId) {
     try {
         const response = await fetch(`/api/students/${studentId}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            headers: fetchOptions.headers
         });
         
         if (response.ok) {
-            students = students.filter(s => s.id !== studentId);
-            relationships = relationships.filter(r => 
-                r.student_id !== studentId && r.friend_id !== studentId
-            );
-            updateStudentList();
-            updateRelationshipMap();
+            loadData();
+        } else {
+            const error = await response.json();
+            alert(`오류 발생: ${error.error}`);
         }
     } catch (error) {
         console.error('학생 삭제 중 오류 발생:', error);
-        alert('학생을 삭제하는 중 오류가 발생했습니다.');
     }
 }
 

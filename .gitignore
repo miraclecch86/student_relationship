@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Flask
+instance/
+.webassets-cache
+
+# SQLite DB (for development)
+# Uncomment if you want to include your DB in version control
+# *.db
+
+# Virtual environments
+venv/
+ENV/
+
+# IDE files
+.idea/
+.vscode/
+
+# OS specific files
+.DS_Store
+Thumbs.db 

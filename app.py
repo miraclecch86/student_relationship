@@ -4,7 +4,14 @@ import os
 import json
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///students.db'
+
+# 데이터베이스 설정 - Render 배포 호환성을 위해 수정
+database_url = os.environ.get('DATABASE_URL', 'sqlite:///students.db')
+# PostgreSQL URL 형식 수정 (Render 요구사항)
+if database_url.startswith("postgres://"):
+    database_url = database_url.replace("postgres://", "postgresql://", 1)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
@@ -456,4 +463,8 @@ def delete_question_from_all_students():
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-    app.run(debug=True) 
+    # 환경 변수에서 포트 가져오기, 기본값 5000
+    port = int(os.environ.get('PORT', 5000))
+    # 프로덕션에서는 debug 모드 비활성화, 모든 IP에서 접근 가능하도록 설정
+    debug_mode = os.environ.get('FLASK_ENV', 'production') != 'production'
+    app.run(host='0.0.0.0', port=port, debug=debug_mode) 
