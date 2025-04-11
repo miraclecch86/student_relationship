@@ -393,6 +393,66 @@ def reset_class_students(class_id):
         print(f"Error in reset_class_students: {str(e)}")
         return create_error_response(str(e), 500)
 
+@app.route('/api/weekly-form/delete-question', methods=['POST'])
+def delete_question_from_all_students():
+    data = request.get_json()
+    
+    if not data or 'question_index' not in data or 'class_id' not in data:
+        return create_error_response('질문 인덱스와 클래스 ID가 필요합니다.'), 400
+    
+    question_index = data['question_index']
+    class_id = data['class_id']
+    question_key = f'additional_question_{question_index}'
+    
+    try:
+        # 해당 클래스의 모든 학생 조회
+        students = Student.query.filter_by(class_id=class_id).all()
+        
+        if not students:
+            return jsonify({'message': '해당 클래스에 학생이 없습니다.'}), 200
+        
+        print(f"클래스 ID {class_id}의 모든 학생({len(students)}명)에서 질문 {question_key} 삭제 시작")
+        
+        # 삭제된 질문에 대한 답변이 있는 학생 수
+        affected_students = 0
+        
+        # 각 학생의 주간식 데이터에서 해당 질문 삭제
+        for student in students:
+            if not student.weekly_form_json:
+                continue
+                
+            try:
+                weekly_form_data = json.loads(student.weekly_form_json)
+                
+                # 해당 질문이 있는지 확인
+                if question_key in weekly_form_data:
+                    # 질문 삭제
+                    del weekly_form_data[question_key]
+                    affected_students += 1
+                    
+                    # 모든 질문이 삭제된 경우 None으로 설정
+                    if not weekly_form_data:
+                        student.weekly_form_json = None
+                    else:
+                        # 업데이트된 데이터 저장
+                        student.weekly_form_json = json.dumps(weekly_form_data)
+            except Exception as e:
+                print(f"학생 {student.id}의 주간식 데이터 처리 중 오류: {str(e)}")
+                continue
+        
+        # 변경사항 저장
+        db.session.commit()
+        
+        return jsonify({
+            'status': 'success',
+            'message': f'질문이 {affected_students}명의 학생 데이터에서 삭제되었습니다.',
+            'affected_students': affected_students
+        })
+    except Exception as e:
+        db.session.rollback()
+        print(f"질문 삭제 중 오류: {str(e)}")
+        return create_error_response(str(e)), 500
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
