@@ -114,10 +114,17 @@ function updateRelationshipMap() {
             .style('fill', color);
     });
 
-    // 노드 위치 계산
+    // 학생별 성별 정보 가져오기
+    const getGender = studentId => {
+        const storedGender = localStorage.getItem(`student_${studentId}_gender`);
+        return storedGender || 'male'; // 기본값은 남학생
+    };
+
+    // 노드 위치 계산 및 성별 정보 추가
     const nodes = students.map(student => ({
         id: student.id,
         name: student.name,
+        gender: getGender(student.id),
         x: nodePositions[student.id]?.x || width/2 + (Math.random() - 0.5) * width/2,
         y: nodePositions[student.id]?.y || height/2 + (Math.random() - 0.5) * height/2
     }));
@@ -156,7 +163,7 @@ function updateRelationshipMap() {
     node.append('circle')
         .attr('r', 20)
         .style('fill', '#fff')
-        .style('stroke', '#6366f1')
+        .style('stroke', d => d.gender === 'male' ? '#4f46e5' : '#ec4899') // 성별에 따라 테두리 색상 변경
         .style('stroke-width', 2);
     
     node.append('text')
@@ -166,12 +173,34 @@ function updateRelationshipMap() {
         .style('pointer-events', 'none')
         .text(d => d.name);
     
+    // 성별에 따른 그룹화를 위한 포스 추가 함수
+    function genderGroupingForce(alpha) {
+        const centerX = width / 2;
+        const centerY = height / 2;
+        const strengthX = 0.1;
+        const strengthY = 0.1;
+        
+        // 남학생은 왼쪽, 여학생은 오른쪽으로 배치
+        nodes.forEach(node => {
+            if (node.gender === 'male') {
+                // 남학생은 왼쪽으로
+                node.vx += (centerX - 200 - node.x) * strengthX * alpha;
+                node.vy += (centerY - node.y) * strengthY * alpha;
+            } else {
+                // 여학생은 오른쪽으로
+                node.vx += (centerX + 200 - node.x) * strengthX * alpha;
+                node.vy += (centerY - node.y) * strengthY * alpha;
+            }
+        });
+    }
+    
     // 시뮬레이션 설정
     const simulation = d3.forceSimulation(nodes)
         .force('link', d3.forceLink(links).distance(150))
         .force('charge', d3.forceManyBody().strength(-500))
         .force('center', d3.forceCenter(width / 2, height / 2))
         .force('collision', d3.forceCollide().radius(40))
+        .force('gender', genderGroupingForce) // 성별 그룹화 포스 추가
         .on('tick', ticked);
 
     // 시뮬레이션 업데이트 함수
@@ -184,6 +213,9 @@ function updateRelationshipMap() {
         });
         
         node.attr('transform', d => `translate(${d.x},${d.y})`);
+        
+        // 성별 그룹화 포스 적용
+        genderGroupingForce(simulation.alpha());
     }
     
     // 드래그 이벤트 핸들러

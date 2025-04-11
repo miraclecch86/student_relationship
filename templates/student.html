@@ -66,6 +66,12 @@
             border-bottom: 2px solid var(--border-color);
         }
 
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
         .relationship-header h2 {
             font-size: 1.25rem;
             font-weight: 600;
@@ -373,13 +379,48 @@
                 grid-template-columns: repeat(2, 1fr);
             }
         }
+
+        .gender-selector {
+            display: flex;
+            gap: 0.5rem;
+            margin-left: 1rem;
+        }
+
+        .gender-button {
+            padding: 0.4rem 0.8rem;
+            background: var(--background-light);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .gender-button:hover {
+            background: rgba(99, 102, 241, 0.1);
+            color: var(--primary-color);
+        }
+
+        .gender-button.active {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="relationship-card">
             <div class="relationship-header">
-                <h2>{{ student.name }}님의 관계 설정</h2>
+                <div class="header-left">
+                    <h2>{{ student.name }}의 관계 설정</h2>
+                    <div class="gender-selector">
+                        <button id="maleBtn" class="gender-button" onclick="setGender('male')">남학생</button>
+                        <button id="femaleBtn" class="gender-button" onclick="setGender('female')">여학생</button>
+                    </div>
+                </div>
                 <button class="back-button" onclick="goBack()">돌아가기</button>
             </div>
             <div id="relationshipList" class="relationship-list">
@@ -416,6 +457,7 @@
         let allStudents = {{ other_students | tojson }};
         let relationships = {{ relationships | tojson }};
         let currentClassId = {{ class_.id }};
+        let studentGender = localStorage.getItem(`student_${currentStudent.id}_gender`) || 'male'; // 기본값은 남학생
 
         // 추가된 질문 목록
         let additionalQuestions = [];
@@ -429,6 +471,7 @@
             loadWeeklyForm();
             loadQuestionsFromLocalStorage();
             setupAutoSave();
+            updateGenderButtons(); // 성별 버튼 상태 업데이트
         };
 
         // 관계 목록 업데이트
@@ -973,6 +1016,25 @@
                     showAlert(error.message, 'error');
                 }
                 return false; // 저장 실패
+            }
+        }
+
+        // 성별 설정 함수
+        function setGender(gender) {
+            studentGender = gender;
+            localStorage.setItem(`student_${currentStudent.id}_gender`, gender);
+            updateGenderButtons();
+            showAlert(`${gender === 'male' ? '남학생' : '여학생'} 모드로 변경되었습니다.`, 'success');
+        }
+
+        // 성별 버튼 상태 업데이트
+        function updateGenderButtons() {
+            const maleBtn = document.getElementById('maleBtn');
+            const femaleBtn = document.getElementById('femaleBtn');
+            
+            if (maleBtn && femaleBtn) {
+                maleBtn.classList.toggle('active', studentGender === 'male');
+                femaleBtn.classList.toggle('active', studentGender === 'female');
             }
         }
     </script>
