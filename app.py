@@ -21,6 +21,7 @@ def create_error_response(message, code=400):
 
 # 학급 모델
 class Class(db.Model):
+    __tablename__ = 'class_table'  # 'class' 대신 'class_table' 사용
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text)
@@ -38,7 +39,7 @@ class Class(db.Model):
 class Student(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
-    class_id = db.Column(db.Integer, db.ForeignKey('class.id'), nullable=False)
+    class_id = db.Column(db.Integer, db.ForeignKey('class_table.id'), nullable=False)
     weekly_form_json = db.Column(db.Text, nullable=True)  # 주간식 데이터를 JSON 문자열로 저장
     
     # 관계 정의
@@ -461,10 +462,14 @@ def delete_question_from_all_students():
         return create_error_response(str(e)), 500
 
 if __name__ == '__main__':
+    # 로컬 개발용
     with app.app_context():
         db.create_all()
-    # 환경 변수에서 포트 가져오기, 기본값 5000
     port = int(os.environ.get('PORT', 5000))
     # 프로덕션에서는 debug 모드 비활성화, 모든 IP에서 접근 가능하도록 설정
     debug_mode = os.environ.get('FLASK_ENV', 'production') != 'production'
-    app.run(host='0.0.0.0', port=port, debug=debug_mode) 
+    app.run(host='0.0.0.0', port=port, debug=debug_mode)
+else:
+    # gunicorn으로 실행될 때(Render.com)
+    with app.app_context():
+        db.create_all() 
