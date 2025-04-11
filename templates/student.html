@@ -805,44 +805,81 @@
         // 저장하고 돌아가기
         async function saveAndGoBack() {
             try {
-                const saveResult = await saveAll();
+                // 주간식 데이터 저장 시도 (조용히 수행)
+                await saveAll(true);
                 
-                // 저장이 성공한 경우에만 페이지 이동
-                if (saveResult) {
-                    // 저장이 완료된 후 돌아가기
-                    setTimeout(() => {
-                        goBack();
-                    }, 1000); // 저장 완료를 위해 1초 대기
-                }
+                // 메시지 없이 즉시 돌아가기
+                goBack();
             } catch (error) {
                 console.error('Error:', error);
-                showAlert('저장 중 오류가 발생했습니다.', 'error');
+                
+                // 오류가 발생해도 메시지 표시 없이 돌아가기
+                goBack();
             }
         }
 
-        // 기존 saveAll 함수 수정
-        async function saveAll() {
+        // 기존 saveAll 함수 수정 - 조용히 저장하는 옵션 추가
+        async function saveAll(silent = false) {
             try {
                 const formData = {};
+                let hasAnyContent = false;
                 
                 // 추가 질문 데이터 수집
                 additionalQuestions.forEach((question, index) => {
                     const textarea = document.getElementById(`additional_question_${index}`);
                     if (textarea) {
-                        formData[`additional_question_${index}`] = {
-                            question: question,
-                            answer: textarea.value || ''
-                        };
+                        const answer = textarea.value.trim();
+                        
+                        // 답변이 있는 경우에만 데이터에 포함
+                        if (answer) {
+                            formData[`additional_question_${index}`] = {
+                                question: question,
+                                answer: answer
+                            };
+                            hasAnyContent = true;
+                        }
                     }
                 });
 
                 console.log('저장할 데이터:', formData);
+                console.log('데이터 유무:', hasAnyContent ? '데이터 있음' : '데이터 없음');
 
-                // 서버에 데이터 저장
+                // 모든 답변이 비어 있는 경우 - DELETE 요청 보내기
+                if (!hasAnyContent) {
+                    console.log('모든 답변이 비어있어 삭제 요청을 보냅니다.');
+                    
+                    const deleteResponse = await fetch(`/api/students/${currentStudent.id}/weekly-form`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Cache-Control': 'no-cache, no-store, must-revalidate',
+                            'Pragma': 'no-cache',
+                            'Expires': '0'
+                        }
+                    });
+                    
+                    if (!deleteResponse.ok) {
+                        throw new Error('데이터 삭제에 실패했습니다.');
+                    }
+                    
+                    console.log('주간식 데이터 삭제 완료');
+                    
+                    // 로컬 스토리지에서도 삭제
+                    localStorage.removeItem(`weekly_answers_${currentClassId}_${currentStudent.id}`);
+                    
+                    if (!silent) {
+                        showAlert('모든 데이터가 삭제되었습니다.', 'success');
+                    }
+                    return true;
+                }
+                
+                // 데이터가 있는 경우 - PUT 요청 보내기
                 const response = await fetch(`/api/students/${currentStudent.id}/weekly-form`, {
                     method: 'PUT',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache',
+                        'Expires': '0'
                     },
                     body: JSON.stringify(formData)
                 });
@@ -867,7 +904,9 @@
                         JSON.stringify(formData)
                     );
 
-                    showAlert('저장되었습니다.', 'success');
+                    if (!silent) {
+                        showAlert('저장되었습니다.', 'success');
+                    }
                     return true; // 저장 성공
                 } catch (parseError) {
                     console.error('응답 파싱 실패:', parseError);
@@ -876,7 +915,9 @@
                 }
             } catch (error) {
                 console.error('Error:', error);
-                showAlert(error.message, 'error');
+                if (!silent) {
+                    showAlert(error.message, 'error');
+                }
                 return false; // 저장 실패
             }
         }
